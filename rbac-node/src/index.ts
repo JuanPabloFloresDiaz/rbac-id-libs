@@ -16,10 +16,13 @@ export { sanitizeBody }          from './utils/sanitizeBody'
 // ─── Re-exports de rbac-core útiles en el servidor ────────────────────────────
 // Evita que el consumer tenga que importar directamente de @oscardevpr/rbac-core
 // para los tipos más comunes de negocio.
+export { defineRbacSeed, runSeeder } from '@oscardevpr/rbac-core'
 export type {
   Permission,
   User,
   UserType,
   Application,
-  ApiError
+  ApiError,
+  RbacSeedEntry,
+  RbacSeedMap,
 } from '@oscardevpr/rbac-core'

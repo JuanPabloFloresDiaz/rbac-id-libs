@@ -161,10 +161,50 @@ const rbac = createRbacNode({
 
 ## Re-exports de `@oscardevpr/rbac-core`
 
-Para no tener que instalar `rbac-core` por separado en el servidor, `rbac-node` re-exporta los tipos más comunes:
+Para no tener que instalar `rbac-core` por separado en el servidor, `rbac-node` re-exporta los tipos más comunes y el seeder:
 
 ```ts
 import type { Permission, User, UserType, Application, ApiError } from '@oscardevpr/rbac-node'
+
+// Seeder — declarar categorías y acciones en el servidor
+import { defineRbacSeed, runSeeder } from '@oscardevpr/rbac-node'
+```
+
+---
+
+## Seeder declarativo
+
+El seeder debe ejecutarse **únicamente desde el servidor**. Llama a `POST /rbac/seed` para que el backend cree las entradas faltantes en la DB (**upsert**). Es fire-and-forget — nunca bloquea el arranque del servidor.
+
+```ts
+// server.ts
+import { createRbacNode, defineRbacSeed, runSeeder } from '@oscardevpr/rbac-node'
+
+const seed = defineRbacSeed({
+  Empleados: ['Agregar empleados', 'Editar datos', 'Eliminar', 'Reactivar'],
+  Planillas: ['Crear', 'Ver', 'Cerrar planilla'],
+  Reportes:  ['Ver', 'Exportar'],
+})
+
+// Ejecutar al iniciar el servidor — antes de montar rutas
+runSeeder(seed)
+
+const rbac = createRbacNode({ authApiUrl, applicationId })
+app.use(rbac.audit())
+app.use(rbac.guard)
+```
+
+**Endpoint esperado en el backend:**
+
+```
+POST /rbac/seed
+Content-Type: application/json
+
+{
+  "categories": [
+    { "name": "Empleados", "actions": ["Agregar empleados", "Editar datos", ...] }
+  ]
+}
 ```
 
 ---
@@ -181,6 +221,8 @@ import type {
   UserType,
   Application,
   ApiError,
+  RbacSeedEntry,          // { name: string; actions: string[] }
+  RbacSeedMap,            // Record<string, string[]>
 } from '@oscardevpr/rbac-node'
 ```
 
