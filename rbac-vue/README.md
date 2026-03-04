@@ -8,7 +8,6 @@ Incluye:
 - Composable `usePermission()`
 - Directiva `v-can`
 - Componente `<CanAccess>`
-- Seeder declarativo de categorías y acciones
 
 ---
 
@@ -53,7 +52,6 @@ pnpm add @oscardevpr/rbac-vue
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { RbacPlugin } from '@oscardevpr/rbac-vue'
-import rbacSeed from './rbac.seed.js' // opcional
 import App from './App.vue'
 
 const app = createApp(App)
@@ -64,13 +62,15 @@ app.use(RbacPlugin, {
   authApiUrl:    import.meta.env.VITE_AUTH_API_URL,
   applicationId: import.meta.env.VITE_APPLICATION_ID,
   debugMode:     import.meta.env.VITE_APP_MODE === 'debugging', // si true, hasAccess() siempre retorna true
-  seed:          rbacSeed  // opcional — sincroniza categorías con la DB al iniciar
 })
 
 app.mount('#app')
 ```
 
 > **Nota:** `createPinia()` debe instalarse **antes** que `RbacPlugin`.
+
+> **Nota de seguridad:** El seed de categorías y acciones (`POST /rbac/seed`) debe ejecutarse
+> **únicamente desde el servidor** usando `@oscardevpr/rbac-node`. Nunca desde el frontend.
 
 ### 2. Variables de entorno requeridas
 
@@ -79,50 +79,6 @@ VITE_AUTH_API_URL="http://localhost:5000/api/v1"
 VITE_APPLICATION_ID="app_xxxxxxxxxxxxxxxx"
 VITE_APP_MODE="production"   # cambiar a "debugging" para saltar validaciones de permisos
 ```
-
----
-
-## Seeder declarativo
-
-El seeder permite declarar las categorías y acciones de tu proyecto. Al iniciar la app,
-la librería llama a `POST /rbac/seed` para que el backend cree las entradas faltantes en la base de datos.
-Es **fire-and-forget**: nunca bloquea la app aunque falle.
-
-### Crear el archivo seed
-
-```js
-// src/rbac.seed.js
-import { defineRbacSeed } from '@oscardevpr/rbac-vue'
-
-export default defineRbacSeed({
-  Empleados: [
-    'Agregar empleados',
-    'Editar datos de empleado',
-    'Eliminar',
-    'Reactivar Empleado Eliminado'
-  ],
-  Planillas: ['Crear', 'Ver', 'Cerrar planilla'],
-  Reportes:  ['Ver', 'Exportar'],
-})
-```
-
-La estructura es `{ [categoria: string]: string[] }` — el nombre de la categoría como clave y un arreglo con los nombres de las acciones.
-
-### Endpoint esperado en el backend
-
-```
-POST /rbac/seed
-Content-Type: application/json
-
-{
-  "categories": [
-    { "name": "Empleados", "actions": ["Agregar empleados", "Editar datos de empleado", ...] },
-    { "name": "Planillas",  "actions": ["Crear", "Ver", "Cerrar planilla"] }
-  ]
-}
-```
-
-El backend debe hacer **upsert**: crear lo que no existe y no modificar lo que ya está.
 
 ---
 
@@ -277,8 +233,7 @@ app.use(RbacPlugin, options)
         │
         ├── setRbacConfig(authApiUrl, applicationId, debugMode)
         ├── app.directive('can', vCan)
-        ├── app.component('CanAccess', CanAccess)
-        └── runSeeder(seed)  →  POST /rbac/seed  (background, no bloquea)
+        └── app.component('CanAccess', CanAccess)
 
 (usuario navega a una ruta protegida)
         │
@@ -309,18 +264,6 @@ VITE_APP_MODE="debugging"
 
 ```
 src/
-  config/
-    rbacConfig.js        Singleton de configuración (authApiUrl, applicationId, debugMode)
-  http/
-    createAuthApi.js     Factory de axios — retorna response.data directamente
-    authService.js       Funciones HTTP: login, logout, verifySession, getUserTypeAndActions
-  store/
-    useAuthStore.js      Pinia store de sesión y permisos
-  core/
-    permissionEngine.js  Lógica pura JS: checkPermission() y checkPermissionAny()
-  seeder/
-    defineRbacSeed.js    Helper para declarar el mapa de categorías y acciones
-    runSeeder.js         Envía el seed al backend en background
   composables/
     usePermission.js     Composable principal
   directives/
@@ -343,7 +286,6 @@ import {
   useAuthStore,        // Pinia store
   vCan,                // Directiva (para registro manual local)
   CanAccess,           // Componente (para registro manual local)
-  defineRbacSeed,      // Helper para el seed
   checkPermission,     // Motor de permisos — scoped (uso avanzado / tests)
   checkPermissionAny   // Motor de permisos — any category (uso avanzado / tests)
 } from '@oscardevpr/rbac-vue'

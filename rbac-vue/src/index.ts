@@ -25,7 +25,6 @@ export { default as CanAccess } from './components/CanAccess.vue'
 export {
   checkPermission,
   checkPermissionAny,
-  defineRbacSeed,
   rbacConfig
 } from '@oscardevpr/rbac-core'
 export type {
@@ -34,7 +33,5 @@ export type {
   UserType,
   Application,
   RbacConfig,
-  RbacSeedEntry,
-  RbacSeedMap,
   ApiError
 } from '@oscardevpr/rbac-core'

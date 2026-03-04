@@ -1,6 +1,5 @@
 import { type App } from 'vue'
-import { setRbacConfig, runSeeder } from '@oscardevpr/rbac-core'
-import type { RbacSeedEntry } from '@oscardevpr/rbac-core'
+import { setRbacConfig } from '@oscardevpr/rbac-core'
 import { vCan } from '../directives/vCan'
 import CanAccess from '../components/CanAccess.vue'
 
@@ -13,11 +12,6 @@ export interface RbacPluginOptions {
   debugMode?: boolean
   /** Route name to redirect to on session failure. Default: `'login'`. */
   loginRoute?: string
-  /**
-   * Optional seed payload produced by `defineRbacSeed()`.
-   * When provided, `POST /rbac/seed` is called fire-and-forget on install.
-   */
-  seed?: RbacSeedEntry[]
 }
 
 /**
@@ -46,7 +40,6 @@ export const RbacPlugin = {
       applicationId,
       debugMode = false,
       loginRoute = 'login',
-      seed
     } = options
 
     if (!authApiUrl) {
@@ -62,15 +55,10 @@ export const RbacPlugin = {
     // 1. Write runtime config into the shared singleton
     setRbacConfig({ authApiUrl, applicationId, debugMode, loginRoute })
 
-    // 2. Fire-and-forget seed sync (no-op when seed is omitted)
-    if (seed?.length) {
-      runSeeder(seed)
-    }
-
-    // 3. Register global directive v-can
+    // 2. Register global directive v-can
     app.directive('can', vCan)
 
-    // 4. Register global component <CanAccess>
+    // 3. Register global component <CanAccess>
     app.component('CanAccess', CanAccess)
   }
 }
