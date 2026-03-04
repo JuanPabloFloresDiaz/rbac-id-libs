@@ -23,7 +23,7 @@
     "express": ">=4.0.0"
   },
   "dependencies": {
-    "@oscardevpr/rbac-core": "*",
+    "@oscardevpr/rbac-core": "workspace:*",
     "axios": "^1.6.0"
   },
   "devDependencies": {
