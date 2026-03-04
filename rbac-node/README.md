@@ -1,0 +1,228 @@
+# @oscardevpr/rbac-node
+
+Middlewares de autenticación y RBAC para **Express / Node.js** basados en `itr-authenticator`.
+
+Incluye:
+- `guard` — verifica permisos en cada request contra el servicio de auth
+- `audit()` — registra todas las acciones (fire-and-forget, no bloquea)
+- `sessionCheck` — refresca el token silenciosamente si está próximo a expirar
+
+---
+
+## Instalación
+
+### Desde GitHub Packages
+
+1. Crea / edita el archivo `.npmrc` en la raíz de tu proyecto:
+
+```ini
+@oscardevpr:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+2. Carga tu token (PowerShell):
+
+```powershell
+# opción A — leer de .env
+$env:GITHUB_TOKEN = (Get-Content .env | Select-String "GITHUB_TOKEN").ToString().Split("=")[1].Trim()
+
+# opción B — pegar el token directamente
+$env:GITHUB_TOKEN = "ghp_xxxxxxxxxxxx"
+```
+
+3. Instala el paquete:
+
+```bash
+npm install @oscardevpr/rbac-node
+# o con pnpm
+pnpm add @oscardevpr/rbac-node
+```
+
+> **Nota:** `@oscardevpr/rbac-core` se instala automáticamente como dependencia.
+
+### Desde el workspace (monorepo local)
+
+```bash
+pnpm add @oscardevpr/rbac-node@workspace:*
+```
+
+---
+
+## Uso rápido
+
+```ts
+// server.ts
+import express from 'express'
+import { createRbacNode } from '@oscardevpr/rbac-node'
+
+const app = express()
+
+const rbac = createRbacNode({
+  authApiUrl:    process.env.AUTH_API,          // URL de itr-authenticator (requerido)
+  applicationId: process.env.APPLICATION_ID,   // ID de la app registrada (requerido)
+  publicRoutes:  ['/health', '/api-docs'],      // rutas que saltan el guard
+  timeout:       3000,                          // timeout en ms para llamadas al auth service
+  debugMode:     process.env.NODE_ENV !== 'production',
+})
+
+// Auditoría — registra todas las acciones en background
+app.use(rbac.audit())
+
+// Guard — bloquea requests sin permisos (retorna 401/403)
+app.use(rbac.guard)
+
+// SessionCheck — en rutas donde quieras refresh silencioso de token
+app.use('/api', rbac.sessionCheck)
+
+app.listen(3000)
+```
+
+---
+
+## `createRbacNode(options)` — opciones
+
+| Opción           | Tipo                | Requerido | Default           | Descripción                                              |
+|------------------|---------------------|-----------|-------------------|----------------------------------------------------------|
+| `authApiUrl`     | `string`            | ✅        | —                 | URL base del servicio itr-authenticator                  |
+| `applicationId`  | `string \| number`  | ✅        | —                 | ID de la aplicación registrada                           |
+| `publicRoutes`   | `string[]`          | ❌        | `['/health']`     | Rutas que saltan `guard` y `sessionCheck`                |
+| `timeout`        | `number`            | ❌        | `3000`            | Timeout en ms para llamadas HTTP al auth service         |
+| `debugMode`      | `boolean`           | ❌        | `false`           | Si `true`, todos los middlewares llaman `next()` directo |
+| `tokenExtractor` | `TokenExtractor`    | ❌        | cookie `access_token` | Función para extraer el JWT de la request           |
+| `logger`         | `object`            | ❌        | `console`         | Logger propio (winston, pino, etc.)                      |
+
+---
+
+## `rbac.guard` — middleware de autorización
+
+Valida cada request contra `POST {authApiUrl}/api/v1/permissions/check`.
+
+- Si el endpoint retorna **200** → llama `next()`.
+- Si retorna **401 / 403** → pasa el error al handler de Express (`next(error)`).
+- Rutas en `publicRoutes` y `debugMode: true` siempre pasan.
+
+```ts
+app.use(rbac.guard)
+```
+
+El endpoint de verificación recibe:
+
+```json
+{
+  "appKey": "<applicationId>",
+  "method": "POST",
+  "path": "/api/empleados"
+}
+```
+
+---
+
+## `rbac.audit(options?)` — middleware de auditoría
+
+Registra cada request de forma asíncrona (**fire-and-forget**). Nunca bloquea ni falla la request principal.
+
+```ts
+app.use(rbac.audit({
+  exclude:         ['/health', '/metrics'],  // rutas que no se auditan
+  sensitiveFields: ['password', 'pin'],      // campos extra a ocultar del body
+}))
+```
+
+Los campos sensibles predeterminados ocultados son:
+`password`, `token`, `access_token`, `refresh_token`, `secret`, `cvv`, `pin`.
+
+---
+
+## `rbac.sessionCheck` — middleware de refresco de sesión
+
+Solicita un refresco silencioso del token al servicio de auth. Aplica solo en las rutas donde sea conveniente (generalmente el router principal de la API).
+
+```ts
+app.use('/api', rbac.sessionCheck)
+```
+
+---
+
+## `tokenExtractor` personalizado
+
+Por defecto el token se lee de la **cookie** `access_token`. Para soportar también `Authorization: Bearer`:
+
+```ts
+const rbac = createRbacNode({
+  authApiUrl:    process.env.AUTH_API,
+  applicationId: process.env.APPLICATION_ID,
+  tokenExtractor: (req) =>
+    req.cookies?.access_token ??
+    req.headers.authorization?.replace('Bearer ', ''),
+})
+```
+
+---
+
+## Re-exports de `@oscardevpr/rbac-core`
+
+Para no tener que instalar `rbac-core` por separado en el servidor, `rbac-node` re-exporta los tipos más comunes:
+
+```ts
+import type { Permission, User, UserType, Application, ApiError } from '@oscardevpr/rbac-node'
+```
+
+---
+
+## Tipos exportados
+
+```ts
+import type {
+  RbacNodeOptions,        // Opciones de createRbacNode()
+  AuditMiddlewareOptions, // Opciones de rbac.audit()
+  TokenExtractor,         // (req: Request) => string | undefined
+  Permission,
+  User,
+  UserType,
+  Application,
+  ApiError,
+} from '@oscardevpr/rbac-node'
+```
+
+---
+
+## Variables de entorno sugeridas
+
+```dotenv
+AUTH_API=http://localhost:8015
+APPLICATION_ID=app_xxxxxxxxxxxx
+NODE_ENV=production
+```
+
+---
+
+## Build
+
+```bash
+pnpm build   # Genera dist/rbac-node.js (ESM) + dist/rbac-node.umd.cjs (UMD)
+pnpm dev     # Watch mode
+```
+
+---
+
+## Publicar nueva versión
+
+1. Bumpa la versión en `package.json` (semver).
+2. Build y publica:
+
+```bash
+pnpm build
+pnpm publish
+```
+
+El paquete se publica automáticamente en GitHub Packages al hacer push de un tag `v*`.
+
+---
+
+## Dependencias
+
+| Paquete                    | Rol                        |
+|----------------------------|----------------------------|
+| `@oscardevpr/rbac-core`    | Motor RBAC y capa HTTP     |
+| `axios`                    | Cliente HTTP               |
+| `express` *(peerDep)*      | Framework (>=4.0.0)        |

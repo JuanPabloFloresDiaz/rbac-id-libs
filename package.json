@@ -1,0 +1,13 @@
+{
+  "name": "rbac-id-libs",
+  "private": true,
+  "description": "Monorepo de librerías RBAC para el ecosistema itr-authenticator",
+  "scripts": {
+    "build": "pnpm --filter \"@oscardevpr/*\" build",
+    "dev": "pnpm --filter \"@oscardevpr/*\" dev",
+    "typecheck": "pnpm --filter \"@oscardevpr/*\" typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,4 @@
+packages:
+  - 'rbac-core'
+  - 'rbac-node'
+  - 'rbac-vue'

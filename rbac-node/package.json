@@ -1,0 +1,45 @@
+{
+  "name": "@oscardevpr/rbac-node",
+  "version": "1.0.0",
+  "description": "Express/Node.js middlewares de autenticación y RBAC para itr-authenticator",
+  "type": "module",
+  "main": "./dist/rbac-node.umd.cjs",
+  "module": "./dist/rbac-node.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types":   "./dist/index.d.ts",
+      "import":  "./dist/rbac-node.js",
+      "require": "./dist/rbac-node.umd.cjs"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build":     "vite build",
+    "dev":       "vite build --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "express": ">=4.0.0"
+  },
+  "dependencies": {
+    "@oscardevpr/rbac-core": "*",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4",
+    "@types/node": "^20",
+    "express": "^4",
+    "typescript": "^5.4.0",
+    "vite": "^5.0.0",
+    "vite-plugin-dts": "^3.9.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OsCARdevPr/rbac-vue.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  }
+}

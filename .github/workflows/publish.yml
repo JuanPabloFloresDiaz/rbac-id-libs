@@ -1,0 +1,61 @@
+name: Publish to GitHub Packages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@oscardevpr'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── rbac-core (must be published first — it's a dependency of the others) ──
+      - name: Build rbac-core
+        run: pnpm --filter @oscardevpr/rbac-core build
+
+      - name: Publish rbac-core
+        run: pnpm --filter @oscardevpr/rbac-core publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── rbac-node ──────────────────────────────────────────────────────────────
+      - name: Build rbac-node
+        run: pnpm --filter @oscardevpr/rbac-node build
+
+      - name: Publish rbac-node
+        run: pnpm --filter @oscardevpr/rbac-node publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── rbac-vue ───────────────────────────────────────────────────────────────
+      - name: Build rbac-vue
+        run: pnpm --filter @oscardevpr/rbac-vue build
+
+      - name: Publish rbac-vue
+        run: pnpm --filter @oscardevpr/rbac-vue publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
