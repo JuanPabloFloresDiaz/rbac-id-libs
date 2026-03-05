@@ -10,8 +10,9 @@ export type {
 // RbacNodeCtx es interno — no se exporta
 
 // ─── Utilidades (para casos avanzados / testing) ──────────────────────────────
-export { defaultTokenExtractor } from './utils/extractToken'
-export { sanitizeBody }          from './utils/sanitizeBody'
+export { defaultTokenExtractor }  from './utils/extractToken'
+export { sanitizeBody }           from './utils/sanitizeBody'
+export { invalidateByUserId }     from './utils/permissionsCache'
 
 // ─── Re-exports de rbac-core útiles en el servidor ────────────────────────────
 // Evita que el consumer tenga que importar directamente de @oscardevpr/rbac-core

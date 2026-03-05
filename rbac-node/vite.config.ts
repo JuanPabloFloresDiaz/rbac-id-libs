@@ -18,11 +18,13 @@ export default defineConfig({
     rollupOptions: {
       // Express es peerDependency — no se bundlea
       // rbac-core también se externaliza para evitar duplicados en el consumer
-      external: ['express', '@oscardevpr/rbac-core'],
+      external: ['express', '@oscardevpr/rbac-core', 'crypto', 'node:crypto'],
       output: {
         globals: {
           express: 'express',
-          '@oscardevpr/rbac-core': 'RbacCore'
+          '@oscardevpr/rbac-core': 'RbacCore',
+          crypto: 'crypto',
+          'node:crypto': 'crypto',
         }
       }
     }

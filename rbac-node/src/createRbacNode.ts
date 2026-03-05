@@ -1,9 +1,12 @@
 import { setRbacConfig } from '@oscardevpr/rbac-core'
-import type { RbacNodeOptions, RbacNodeCtx, AuditMiddlewareOptions } from './types'
+import type { RbacNodeOptions, RbacNodeCtx, RbacNodeInstance, AuditMiddlewareOptions } from './types'
 import { defaultTokenExtractor } from './utils/extractToken'
 import { makeAuthGuard }         from './middlewares/authGuard'
 import { makeAuditMiddleware }   from './middlewares/auditMiddleware'
 import { makeSessionCheck }      from './middlewares/sessionCheck'
+import { makeLoadPermissions }   from './middlewares/loadPermissions'
+import { makeCan }               from './middlewares/canMiddleware'
+import { makeCacheRouter }       from './middlewares/cacheRouter'
 
 /**
  * Factory principal de `@oscardevpr/rbac-node`.
@@ -36,7 +39,7 @@ import { makeSessionCheck }      from './middlewares/sessionCheck'
  *
  * @throws {Error} Si `authApiUrl` o `applicationId` no están definidos.
  */
-export function createRbacNode(options: RbacNodeOptions) {
+export function createRbacNode(options: RbacNodeOptions): RbacNodeInstance {
   const {
     authApiUrl,
     applicationId,
@@ -44,7 +47,9 @@ export function createRbacNode(options: RbacNodeOptions) {
     timeout        = 3000,
     debugMode      = false,
     tokenExtractor = defaultTokenExtractor,
-    logger         = console
+    logger         = console,
+    permissionsTtl = 300,
+    webhookSecret,
   } = options
 
   // ── Validación de opciones requeridas ────────────────────────────────────
@@ -73,13 +78,16 @@ export function createRbacNode(options: RbacNodeOptions) {
     timeout,
     debugMode,
     tokenExtractor,
-    logger
+    logger,
+    permissionsTtl,
+    webhookSecret,
   }
 
-  // ── Construye los middlewares ────────────────────────────────────────────
+  // ── Construye los middlewares ─────────────────────────────────────────
   const guard        = makeAuthGuard(ctx)
   const sessionCheck = makeSessionCheck(ctx)
   const auditFactory = makeAuditMiddleware(ctx)
+  const canFactory   = makeCan(ctx)
 
   return {
     /**
@@ -121,6 +129,47 @@ export function createRbacNode(options: RbacNodeOptions) {
      * router.use(rbac.sessionCheck)
      * ```
      */
-    sessionCheck
+    sessionCheck,
+
+    /**
+     * Middleware de carga de permisos para el nuevo enfoque per-ruta.
+     *
+     * Hidrata `req.rbac.permissions` con los permisos del usuario.
+     * - Cache HIT  (token ya visto) → 0 llamadas HTTP.
+     * - Cache MISS (primer request) → 1 llamada a `GET /api/v1/permissions/my-permissions`.
+     *
+     * Monta una sola vez ANTES de las rutas protegidas:
+     * ```ts
+     * app.use(rbac.loadPermissions())
+     * router.post('/empleados', rbac.can('Empleados', 'Agregar empleados'), handler)
+     * ```
+     */
+    loadPermissions: () => makeLoadPermissions(ctx),
+
+    /**
+     * Factory de middleware por ruta.
+     *
+     * Verifica que `req.rbac.permissions` contenga la acción requerida.
+     * Es puro y síncrono — 0 llamadas HTTP.
+     *
+     * ```ts
+     * router.post('/empleados',       rbac.can('Empleados', 'Agregar empleados'), handler)
+     * router.delete('/empleados/:id', rbac.can('Empleados', 'Eliminar'),          handler)
+     * ```
+     */
+    can: canFactory,
+
+    /**
+     * Router Express con el endpoint de invalidación de cache.
+     *
+     * itr-authenticator llama a `POST /rbac/cache/invalidate` cuando los
+     * permisos de un usuario cambian para forzar el re-fetch en el próximo request.
+     *
+     * Monta una sola vez en el servidor:
+     * ```ts
+     * app.use(rbac.cacheRouter)
+     * ```
+     */
+    cacheRouter: makeCacheRouter(ctx),
   }
 }

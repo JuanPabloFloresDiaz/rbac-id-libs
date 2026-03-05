@@ -86,6 +86,21 @@ export interface RbacNodeOptions {
    * Default: `console`
    */
   logger?: Pick<Console, 'info' | 'warn' | 'error'>
+
+  /**
+   * TTL en segundos para el cache de permisos de `loadPermissions()`.
+   * Debe coincidir con el TTL de `PermissionCacheService` en itr-authenticator.
+   * Default: `300` (5 minutos)
+   */
+  permissionsTtl?: number
+
+  /**
+   * Secret compartido para autenticar el webhook de invalidación de cache.
+   * Si se define, el endpoint `POST /rbac/cache/invalidate` exige el header
+   * `x-rbac-secret: <webhookSecret>`.
+   * Se recomienda para entornos de producción.
+   */
+  webhookSecret?: string
 }
 
 // ─── Internal shared context ──────────────────────────────────────────────────
@@ -95,6 +110,27 @@ export interface RbacNodeOptions {
  * No forma parte de la API pública — sólo para uso interno del package.
  * @internal
  */
+// ─── Public factory return type ─────────────────────────────────────────────
+
+import type { RequestHandler, Router } from 'express'
+
+export interface RbacNodeInstance {
+  /** Middleware global de autorización (modo legacy — 1 HTTP call por request). */
+  guard: RequestHandler
+  /** Factory del middleware de auditoría (fire-and-forget). */
+  audit: (opts?: AuditMiddlewareOptions) => RequestHandler
+  /** Middleware de verificación de sesión activa / silent token refresh. */
+  sessionCheck: RequestHandler
+  /** Middleware global que hidrata `req.rbac.permissions` (1 HTTP call por sesión). */
+  loadPermissions: () => RequestHandler
+  /** Factory de middleware por ruta — verifica un permiso específico de forma síncrona. */
+  can: (category: string, action: string) => RequestHandler
+  /** Router Express con `POST /rbac/cache/invalidate` para invalidación por webhook. */
+  cacheRouter: Router
+}
+
+// ─── Internal shared context ──────────────────────────────────────────────────
+
 export interface RbacNodeCtx {
   authApiUrl: string
   applicationId: string | number
@@ -103,4 +139,6 @@ export interface RbacNodeCtx {
   debugMode: boolean
   tokenExtractor: TokenExtractor
   logger: Pick<Console, 'info' | 'warn' | 'error'>
+  permissionsTtl: number
+  webhookSecret?: string
 }

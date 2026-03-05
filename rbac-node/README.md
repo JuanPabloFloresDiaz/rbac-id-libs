@@ -3,9 +3,12 @@
 Middlewares de autenticación y RBAC para **Express / Node.js** basados en `itr-authenticator`.
 
 Incluye:
-- `guard` — verifica permisos en cada request contra el servicio de auth
+- `guard` — verifica permisos en cada request contra el servicio de auth *(modo legacy)*
 - `audit()` — registra todas las acciones (fire-and-forget, no bloquea)
 - `sessionCheck` — refresca el token silenciosamente si está próximo a expirar
+- `loadPermissions()` — hidrata `req.rbac.permissions` una sola vez por sesión *(modo per-ruta)*
+- `can(category, action)` — factory síncrona de middleware por ruta, 0 llamadas HTTP
+- `cacheRouter` — router con webhook `POST /rbac/cache/invalidate`
 
 ---
 
@@ -81,19 +84,131 @@ app.listen(3000)
 
 ## `createRbacNode(options)` — opciones
 
-| Opción           | Tipo                | Requerido | Default           | Descripción                                              |
-|------------------|---------------------|-----------|-------------------|----------------------------------------------------------|
-| `authApiUrl`     | `string`            | ✅        | —                 | URL base del servicio itr-authenticator                  |
-| `applicationId`  | `string \| number`  | ✅        | —                 | ID de la aplicación registrada                           |
-| `publicRoutes`   | `string[]`          | ❌        | `['/health']`     | Rutas que saltan `guard` y `sessionCheck`                |
-| `timeout`        | `number`            | ❌        | `3000`            | Timeout en ms para llamadas HTTP al auth service         |
-| `debugMode`      | `boolean`           | ❌        | `false`           | Si `true`, todos los middlewares llaman `next()` directo |
-| `tokenExtractor` | `TokenExtractor`    | ❌        | cookie `access_token` | Función para extraer el JWT de la request           |
-| `logger`         | `object`            | ❌        | `console`         | Logger propio (winston, pino, etc.)                      |
+| Opción            | Tipo                | Requerido | Default                | Descripción                                              |
+|-------------------|---------------------|-----------|------------------------|----------------------------------------------------------|
+| `authApiUrl`      | `string`            | ✅        | —                      | URL base del servicio itr-authenticator                  |
+| `applicationId`   | `string \| number`  | ✅        | —                      | ID de la aplicación registrada                           |
+| `publicRoutes`    | `string[]`          | ❌        | `['/health']`          | Rutas que saltan `guard`, `sessionCheck` y `loadPermissions` |
+| `timeout`         | `number`            | ❌        | `3000`                 | Timeout en ms para llamadas HTTP al auth service         |
+| `debugMode`       | `boolean`           | ❌        | `false`                | Si `true`, todos los middlewares llaman `next()` directo |
+| `tokenExtractor`  | `TokenExtractor`    | ❌        | cookie `access_token`  | Función para extraer el JWT de la request                |
+| `logger`          | `object`            | ❌        | `console`              | Logger propio (winston, pino, etc.)                      |
+| `permissionsTtl`  | `number`            | ❌        | `300`                  | TTL en segundos del cache de permisos de `loadPermissions` — debe coincidir con el TTL de itr-authenticator |
+| `webhookSecret`   | `string`            | ❌        | —                      | Secret compartido para autenticar `POST /rbac/cache/invalidate` |
 
 ---
 
-## `rbac.guard` — middleware de autorización
+## Modos de operación
+
+| Modo | Cuándo usarlo | Llamadas HTTP por request |
+|------|--------------|---------------------------|
+| **Legacy** (`guard`) | APIs ya construidas (80+ rutas), migración gradual | 1 por request |
+| **Per-ruta** (`loadPermissions` + `can`) | Nuevas APIs o cuando el rendimiento importa | 1 por sesión (cache) |
+
+Ambos modos coexisten — puedes combinarlos en el mismo servidor.
+
+---
+
+## Modo per-ruta (recomendado para nuevas APIs)
+
+### Setup
+
+```ts
+const rbac = createRbacNode({
+  authApiUrl:    process.env.AUTH_API,
+  applicationId: process.env.APPLICATION_ID,
+  permissionsTtl: 300,           // debe coincidir con PermissionCacheService en itr-authenticator
+  webhookSecret:  process.env.RBAC_WEBHOOK_SECRET,  // opcional pero recomendado en producción
+})
+
+app.use(rbac.audit())
+app.use(rbac.loadPermissions())   // 1 HTTP call por sesión → llena req.rbac.permissions
+app.use(rbac.cacheRouter)         // expone POST /rbac/cache/invalidate
+
+router.get('/empleados',          rbac.can('Empleados', 'Ver'),              listarHandler)
+router.post('/empleados',         rbac.can('Empleados', 'Agregar empleados'), crearHandler)
+router.delete('/empleados/:id',   rbac.can('Empleados', 'Eliminar'),          eliminarHandler)
+```
+
+---
+
+## `rbac.loadPermissions()` — hidratación de permisos
+
+Global middleware que resuelve `req.rbac.permissions` antes de que lleguen a los handlers:
+
+- **Cache HIT** (token ya visto) → 0 llamadas HTTP, resolución desde memoria.
+- **Cache MISS** (primera request del usuario) → 1 llamada a `GET {authApiUrl}/api/v1/permissions/my-permissions?appKey=<applicationId>`.
+
+El token del usuario se almacena como **hash SHA-256** — nunca en texto plano.
+
+```ts
+app.use(rbac.loadPermissions())
+// A partir de aquí, en todos los handlers:
+// req.rbac.userId       → string
+// req.rbac.permissions  → Permission[]
+```
+
+> Requiere el endpoint `GET /api/v1/permissions/my-permissions` en itr-authenticator (v2+).
+
+---
+
+## `rbac.can(category, action)` — guard por ruta
+
+Factory **pura y síncrona** — 0 llamadas HTTP. Usa los permisos ya cargados en `req.rbac.permissions`.
+
+```ts
+router.get('/empleados',              rbac.can('Empleados', 'Ver'),              handler)
+router.post('/empleados',             rbac.can('Empleados', 'Agregar empleados'), handler)
+router.delete('/empleados/:id',       rbac.can('Empleados', 'Eliminar'),          handler)
+router.get('/reportes',               rbac.can('Reportes',  'Ver'),              handler)
+router.post('/reportes/exportar',     rbac.can('Reportes',  'Exportar'),          handler)
+```
+
+Cuando el usuario no tiene el permiso retorna `403 Permission denied`. Si `loadPermissions()` no fue montado antes retorna `500` con un mensaje de configuración.
+
+---
+
+## `rbac.cacheRouter` — invalidación de cache por webhook
+
+itr-authenticator notifica a tu servidor cuando los permisos de un usuario cambian, forzando el re-fetch en el próximo request.
+
+### Setup en el servidor
+
+```ts
+app.use(rbac.cacheRouter)  // registra POST /rbac/cache/invalidate
+```
+
+### Payload del webhook (enviado por itr-authenticator)
+
+```json
+{ "userId": "abc123" }
+```
+
+### Seguridad
+
+Cuando `webhookSecret` está definido, el endpoint exige el header:
+
+```
+x-rbac-secret: <webhookSecret>
+```
+
+Requests sin el header o con secret incorrecto reciben `401`.
+
+### Exportación directa
+
+Puedes invalidar manualmente desde tu propio código:
+
+```ts
+import { invalidateByUserId } from '@oscardevpr/rbac-node'
+
+// Ej: al editar roles desde el panel admin
+await updateUserRoles(userId, newRoles)
+invalidateByUserId(userId)
+```
+
+---
+
+## `rbac.guard` — middleware de autorización (modo legacy)
 
 Valida cada request contra `POST {authApiUrl}/api/v1/permissions/check`.
 
@@ -214,6 +329,7 @@ Content-Type: application/json
 ```ts
 import type {
   RbacNodeOptions,        // Opciones de createRbacNode()
+  RbacNodeInstance,       // Tipo retornado por createRbacNode()
   AuditMiddlewareOptions, // Opciones de rbac.audit()
   TokenExtractor,         // (req: Request) => string | undefined
   Permission,
@@ -225,6 +341,21 @@ import type {
   RbacSeedMap,            // Record<string, string[]>
 } from '@oscardevpr/rbac-node'
 ```
+
+### Augmentación de `Express.Request`
+
+`loadPermissions()` extiende automáticamente `Express.Request` con:
+
+```ts
+interface Request {
+  rbac?: {
+    userId:      string
+    permissions: Permission[]
+  }
+}
+```
+
+No se necesita configuración adicional — se activa al instalar el paquete.
 
 ---
 
