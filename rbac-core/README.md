@@ -54,7 +54,9 @@ setRbacConfig({
   authApiUrl:    process.env.AUTH_API_URL,   // URL base de itr-authenticator
   applicationId: process.env.APPLICATION_ID, // ID de la app registrada
   debugMode:     false,                       // true → checkPermission() siempre retorna true
-  loginRoute:    'login',                     // nombre de la ruta de login (Vue Router)
+  // loginRoute: 'login'  ← solo necesario en @oscardevpr/rbac-vue
+  //                         (useSessionGuard y useLogout lo leen para redirigir con Vue Router)
+  //                         En proyectos Node.js/Express se puede omitir.
 })
 ```
 
@@ -147,7 +149,7 @@ Content-Type: application/json
 | `authApiUrl`    | `string`                  | ✅        | —          | URL base de itr-authenticator                    |
 | `applicationId` | `string \| number`        | ✅        | —          | ID de la aplicación                              |
 | `debugMode`     | `boolean`                 | ❌        | `false`    | Si `true`, `checkPermission` siempre es `true`   |
-| `loginRoute`    | `string`                  | ❌        | `'login'`  | Nombre de ruta para redirección al login         |
+| `loginRoute`    | `string`                  | ❌        | `'login'`  | Nombre de ruta para redirigir al login. **Solo lo usa `@oscardevpr/rbac-vue`** (`useSessionGuard`, `useLogout`). Ignorado en Node.js. |
 
 ### `checkPermission(permissions, category, action)`
 
