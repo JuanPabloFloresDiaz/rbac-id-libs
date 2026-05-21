@@ -1,5 +1,5 @@
 ---
-name: implement-new-wrapper
+name: implement-rbac-vue-wrapper
 description: 
   Step-by-step guide to create a new framework adapter package (React, Svelte,
   Angular, Solid, etc.) on top of @oscardevpr/rbac-core. Use this skill when

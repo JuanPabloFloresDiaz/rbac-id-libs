@@ -50,7 +50,7 @@ RBAC_WEBHOOK_SECRET=un_secret_seguro   # Para el webhook de invalidación (recom
 
 Buscar el archivo principal del servidor (generalmente `src/server.ts`, `src/main.ts` o `src/app.ts`).
 
-### Patrón A — Modo per-ruta (RECOMENDADO para APIs nuevas)
+### Patrón A — Modo per-ruta (RECOMENDADO para APIs nuevas, ocupa este patron para apis nuevas)
 1 HTTP call por sesión en lugar de 1 por request.
 
 ```ts
@@ -100,7 +100,7 @@ app.use(rbac.guard)   // verifica permisos en cada request
 
 ---
 
-## Paso 4 — Proteger rutas individuales (solo Patrón A)
+## Paso 4 — Proteger rutas individuales (solo funcional para el Patrón A)
 
 En cada router de Express, usar `rbac.can(category, action)` como middleware:
 

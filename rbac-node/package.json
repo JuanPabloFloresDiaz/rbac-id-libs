@@ -1,16 +1,21 @@
 {
   "name": "@oscardevpr/rbac-node",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Express/Node.js middlewares de autenticación y RBAC para itr-authenticator",
   "type": "module",
-  "main": "./dist/rbac-node.umd.cjs",
-  "module": "./dist/rbac-node.js",
+  "main": "./dist/rbac-node.node.cjs",
+  "module": "./dist/rbac-node.node.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types":   "./dist/index.d.ts",
-      "import":  "./dist/rbac-node.js",
-      "require": "./dist/rbac-node.umd.cjs"
+      "types": "./dist/index.d.ts",
+      "node": {
+        "import": "./dist/rbac-node.node.mjs",
+        "require": "./dist/rbac-node.node.cjs"
+      },
+      "browser": "./dist/rbac-node.browser.js",
+      "import": "./dist/rbac-node.node.mjs",
+      "require": "./dist/rbac-node.node.cjs"
     }
   },
   "files": ["dist"],
