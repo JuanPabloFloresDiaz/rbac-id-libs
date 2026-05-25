@@ -17,7 +17,10 @@ export async function runSeeder(seed: RbacSeedEntry[]): Promise<void> {
 
   try {
     const api = createAuthApi(rbacConfig.authApiUrl)
-    const response = await api.post('/rbac/seed', { categories: seed })
+    const response = await api.post('/rbac/seed', {
+      appKey: rbacConfig.applicationId,
+      categories: seed
+    })
 
     if (rbacConfig.debugMode) {
       console.info(
