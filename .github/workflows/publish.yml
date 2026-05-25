@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.TOKEN_GITHUB }}
 
       # ── rbac-core (must be published first — it's a dependency of the others) ──
       - name: Build rbac-core
@@ -40,7 +40,7 @@ jobs:
       - name: Publish rbac-core
         run: pnpm --filter @oscardevpr/rbac-core publish --no-git-checks
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.TOKEN_GITHUB }}
 
       # ── rbac-node ──────────────────────────────────────────────────────────────
       - name: Build rbac-node
@@ -49,7 +49,7 @@ jobs:
       - name: Publish rbac-node
         run: pnpm --filter @oscardevpr/rbac-node publish --no-git-checks
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.TOKEN_GITHUB }}
 
       # ── rbac-vue ───────────────────────────────────────────────────────────────
       - name: Build rbac-vue
@@ -58,4 +58,4 @@ jobs:
       - name: Publish rbac-vue
         run: pnpm --filter @oscardevpr/rbac-vue publish --no-git-checks
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.TOKEN_GITHUB }}
