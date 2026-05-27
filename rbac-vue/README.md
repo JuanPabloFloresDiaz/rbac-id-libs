@@ -58,11 +58,12 @@ const app = createApp(App)
 
 app.use(createPinia())
 
-app.use(RbacPlugin, {
-  authApiUrl:    import.meta.env.VITE_AUTH_API_URL,
-  applicationId: import.meta.env.VITE_APPLICATION_ID,
-  debugMode:     import.meta.env.VITE_APP_MODE === 'debugging', // si true, hasAccess() siempre retorna true
-})
+app.use(
+  RbacPlugin,
+  import.meta.env.VITE_AUTH_API_URL,
+  import.meta.env.VITE_APPLICATION_ID,
+  import.meta.env.VITE_APP_MODE === 'debugging' // si true, hasAccess() siempre retorna true
+)
 
 app.mount('#app')
 ```
@@ -193,7 +194,7 @@ const authStore = useAuthStore()
 await authStore.checkAuth()
 
 // Login con credenciales
-await authStore.loginWithCredentials({ email, password })
+await authStore.loginWithCredentials(user_name, password)
 
 // Login con token SSO
 await authStore.loginByCoreToken(token)
@@ -229,9 +230,9 @@ checkAuth()
 ## Flujo completo de autenticación
 
 ```
-app.use(RbacPlugin, options)
+app.use(RbacPlugin, authApiUrl, applicationId, debugMode, loginRoute)
         │
-        ├── setRbacConfig(authApiUrl, applicationId, debugMode)
+  ├── setRbacConfig(authApiUrl, applicationId, debugMode, loginRoute)
         ├── app.directive('can', vCan)
         └── app.component('CanAccess', CanAccess)
 

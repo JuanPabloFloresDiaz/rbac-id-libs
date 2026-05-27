@@ -18,14 +18,13 @@ export default defineConfig({
       fileName: 'rbac-vue'
     },
     rollupOptions: {
-      // peerDependencies + rbac-core are not bundled — provided at runtime
-      external: ['vue', 'pinia', 'vue-router', '@oscardevpr/rbac-core'],
+      // rbac-core is bundled in — one singleton, no deduplication issues
+      external: ['vue', 'pinia', 'vue-router'],
       output: {
         globals: {
           vue: 'Vue',
           pinia: 'Pinia',
-          'vue-router': 'VueRouter',
-          '@oscardevpr/rbac-core': 'RbacCore'
+          'vue-router': 'VueRouter'
         }
       }
     }

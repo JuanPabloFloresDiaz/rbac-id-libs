@@ -1,6 +1,6 @@
 {
   "name": "@oscardevpr/rbac-vue",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "RBAC library for Vue 3 + Pinia applications",
   "type": "module",
   "main": "./dist/rbac-vue.umd.cjs",
@@ -31,14 +31,12 @@
     "vue": "^3.4.21",
     "pinia": "^2.1.7",
     "vue-router": "^4.3.0",
+    "@oscardevpr/rbac-core": "workspace:*",
     "vite": "^5.0.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "vitest": "^1.0.0",
     "typescript": "^5.4.0",
     "vite-plugin-dts": "^3.9.0"
-  },
-  "dependencies": {
-    "@oscardevpr/rbac-core": "workspace:*"
   },
   "repository": {
     "type": "git",

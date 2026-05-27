@@ -1,6 +1,6 @@
 {
   "name": "@oscardevpr/rbac-core",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Framework-agnostic RBAC core — permission engine, config, HTTP and seeder",
   "type": "module",
   "main": "./dist/rbac-core.umd.cjs",

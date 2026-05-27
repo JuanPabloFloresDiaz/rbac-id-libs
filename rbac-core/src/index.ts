@@ -5,7 +5,6 @@ export type {
   UserType,
   Application,
   RbacConfig,
-  RbacConfigInput,
   RbacSeedEntry,
   RbacSeedMap,
   SessionResponse,

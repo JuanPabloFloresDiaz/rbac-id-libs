@@ -1,5 +1,5 @@
 import { setRbacConfig } from '@oscardevpr/rbac-core'
-import type { RbacNodeOptions, RbacNodeCtx, RbacNodeInstance, AuditMiddlewareOptions } from './types'
+import type { RbacNodeCtx, RbacNodeInstance, TokenExtractor } from './types'
 import { defaultTokenExtractor } from './utils/extractToken'
 import { makeAuthGuard }         from './middlewares/authGuard'
 import { makeAuditMiddleware }   from './middlewares/auditMiddleware'
@@ -19,13 +19,15 @@ import { makeCacheRouter }       from './middlewares/cacheRouter'
  * // server.ts / server.js
  * import { createRbacNode } from '@oscardevpr/rbac-node'
  *
- * const rbac = createRbacNode({
- *   authApiUrl:    process.env.AUTH_API,
- *   applicationId: process.env.APPLICATION_ID,
- *   publicRoutes:  ['/health', '/api-docs'],
- *   debugMode:     process.env.NODE_ENV !== 'production',
- *   logger:        logger, // tu instancia de winston/pino
- * })
+ * const rbac = createRbacNode(
+ *   process.env.AUTH_API,
+ *   process.env.APPLICATION_ID,
+ *   ['/health', '/api-docs'],
+ *   3000,
+ *   process.env.NODE_ENV !== 'production',
+ *   undefined,
+ *   logger
+ * )
  *
  * app.use(rbac.audit())   // registra todas las acciones (fire-and-forget)
  * app.use(rbac.guard)     // verifica permisos en cada request
@@ -34,41 +36,47 @@ import { makeCacheRouter }       from './middlewares/cacheRouter'
  * router.use(rbac.sessionCheck)
  * ```
  *
- * @param options - Configuración de la librería. Ver `RbacNodeOptions`.
+ * @param authApiUrl - URL base del servicio itr-authenticator.
+ * @param applicationId - ID de la app registrada en itr-authenticator.
+ * @param publicRoutes - Rutas que saltan guard/sessionCheck. Default: ['/health'].
+ * @param timeout - Timeout en ms para llamadas HTTP. Default: 3000.
+ * @param debugMode - Si true, salta verificaciones. Default: false.
+ * @param tokenExtractor - Función para extraer JWT. Default: cookie access_token.
+ * @param logger - Logger inyectable. Default: console.
+ * @param permissionsTtl - TTL del cache de permisos (segundos). Default: 300.
+ * @param webhookSecret - Secret para webhook de invalidación.
  * @returns Objeto con los tres middlewares listos para montar en Express.
  *
  * @throws {Error} Si `authApiUrl` o `applicationId` no están definidos.
  */
-export function createRbacNode(options: RbacNodeOptions): RbacNodeInstance {
-  const {
-    authApiUrl,
-    applicationId,
-    publicRoutes   = ['/health'],
-    timeout        = 3000,
-    debugMode      = false,
-    tokenExtractor = defaultTokenExtractor,
-    logger         = console,
-    permissionsTtl = 300,
-    webhookSecret,
-  } = options
-
+export function createRbacNode(
+  authApiUrl: string,
+  applicationId: string | number,
+  publicRoutes: string[] = ['/health'],
+  timeout: number = 3000,
+  debugMode: boolean = false,
+  tokenExtractor: TokenExtractor = defaultTokenExtractor,
+  logger: Pick<Console, 'info' | 'warn' | 'error'> = console,
+  permissionsTtl: number = 300,
+  webhookSecret?: string
+): RbacNodeInstance {
   // ── Validación de opciones requeridas ────────────────────────────────────
   if (!authApiUrl) {
     throw new Error(
-      '[rbac-node] authApiUrl es requerido. Pásalo en createRbacNode({ authApiUrl }).'
+      '[rbac-node] authApiUrl es requerido. Pásalo en createRbacNode(authApiUrl, applicationId).'
     )
   }
 
   if (!applicationId) {
     throw new Error(
-      '[rbac-node] applicationId es requerido. Pásalo en createRbacNode({ applicationId }).'
+      '[rbac-node] applicationId es requerido. Pásalo en createRbacNode(authApiUrl, applicationId).'
     )
   }
 
   // ── Sincroniza el singleton de rbac-core (igual que RbacPlugin) ──────────
   // Permite que las funciones de rbac-core lean la misma config si se usan
   // en el mismo proceso (e.g., runSeeder, checkPermission en capa de servicio).
-  setRbacConfig({ authApiUrl, applicationId, debugMode })
+  setRbacConfig(authApiUrl, applicationId, debugMode)
 
   // ── Contexto interno compartido entre middlewares ────────────────────────
   const ctx: RbacNodeCtx = {
@@ -110,13 +118,14 @@ export function createRbacNode(options: RbacNodeOptions): RbacNodeInstance {
      * Registra cada acción del usuario en `POST {authApiUrl}/api/v1/audit-logs`.
      * **Nunca bloquea la request** — el envío ocurre en background (fire-and-forget).
      *
-     * ```ts
-     * app.use(rbac.audit())
-     * // con opciones:
-     * app.use(rbac.audit({ exclude: ['/health'], sensitiveFields: ['myField'] }))
-     * ```
+    * ```ts
+    * app.use(rbac.audit())
+    * // con parametros:
+    * app.use(rbac.audit(['/health'], ['myField']))
+    * ```
      */
-    audit: (opts?: AuditMiddlewareOptions) => auditFactory(opts ?? {}),
+    audit: (exclude?: string[], sensitiveFields?: string[]) =>
+      auditFactory(exclude, sensitiveFields),
 
     /**
      * Middleware de verificación de sesión activa.

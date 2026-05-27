@@ -3,18 +3,6 @@ import { useAuthStore } from '../store/useAuthStore'
 import { rbacConfig } from '@oscardevpr/rbac-core'
 import type { ApiError } from '@oscardevpr/rbac-core'
 
-export interface LogoutOptions {
-  /** Route name to redirect to after logout. Falls back to `rbacConfig.loginRoute`. */
-  redirectTo?: string
-  /** Called with the server response when logout succeeds. */
-  onSuccess?: (data: unknown) => void
-  /**
-   * Called with the error when logout fails.
-   * The redirect still happens on `403` even without this handler.
-   */
-  onError?: (err: ApiError) => void
-}
-
 /**
  * Wraps `authStore.logOut()` with automatic redirect and optional lifecycle hooks.
  *
@@ -23,14 +11,18 @@ export interface LogoutOptions {
  *
  * Usage:
  * ```ts
- * const { logOut } = useLogout({
- *   onSuccess: (data) => toast({ icon: 'success', title: data.message }),
- *   onError:   (err)  => toast({ icon: 'error',   title: err.message }),
- * })
+ * const { logOut } = useLogout(
+ *   undefined,
+ *   (data) => toast({ icon: 'success', title: data.message }),
+ *   (err)  => toast({ icon: 'error',   title: err.message })
+ * )
  * ```
  */
-export function useLogout(options: LogoutOptions = {}) {
-  const { redirectTo, onSuccess, onError } = options
+export function useLogout(
+  redirectTo?: string,
+  onSuccess?: (data: unknown) => void,
+  onError?: (err: ApiError) => void
+) {
   const authStore = useAuthStore()
   const router = useRouter()
 

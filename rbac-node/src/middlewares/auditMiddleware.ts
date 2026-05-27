@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express'
 import axios from 'axios'
-import type { RbacNodeCtx, AuditMiddlewareOptions } from '../types'
+import type { RbacNodeCtx } from '../types'
 import { sanitizeBody } from '../utils/sanitizeBody'
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
@@ -8,13 +8,13 @@ import { sanitizeBody } from '../utils/sanitizeBody'
 /**
  * Creates the `audit` middleware factory from the resolved `RbacNodeCtx`.
  *
- * Returns a function `(options?) => RequestHandler` so the consumer can
+ * Returns a function `(exclude?, sensitiveFields?) => RequestHandler` so the consumer can
  * configure per-mount exclusions and extra sensitive fields:
  *
  * ```ts
  * app.use(rbac.audit())
- * // or with options:
- * app.use(rbac.audit({ exclude: ['/health', '/api-docs'], sensitiveFields: ['mySecret'] }))
+ * // or with parameters:
+ * app.use(rbac.audit(['/health', '/api-docs'], ['mySecret']))
  * ```
  *
  * Design decisions (kept from the original implementation):
@@ -27,9 +27,12 @@ import { sanitizeBody } from '../utils/sanitizeBody'
  *   - `debugMode: false` → only `err.message` to avoid log noise.
  */
 export function makeAuditMiddleware(ctx: RbacNodeCtx) {
-  return function audit(options: AuditMiddlewareOptions = {}): RequestHandler {
-    const excludedRoutes   = options.exclude       ?? []
-    const extraSensitive   = options.sensitiveFields ?? []
+  return function audit(
+    exclude: string[] = [],
+    sensitiveFields: string[] = []
+  ): RequestHandler {
+    const excludedRoutes = exclude
+    const extraSensitive = sensitiveFields
 
     return (req, _res, next) => {
       // ── Always unblock the main request first ──────────────────────────────

@@ -3,8 +3,8 @@ import type { RbacSeedEntry, RbacSeedMap } from '../types'
 /**
  * Declares the RBAC categories and actions for a consumer project.
  *
- * The result is passed to `app.use(RbacPlugin, { seed })` and sent to the
- * backend on startup to ensure all entries exist in the database.
+ * The result is passed to `runSeeder(seed)` on the server so the
+ * backend can ensure all entries exist in the database.
  *
  * Usage (`src/rbac.seed.ts` in the consumer project):
  *

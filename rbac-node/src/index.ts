@@ -3,8 +3,6 @@ export { createRbacNode } from './createRbacNode'
 
 // ─── Tipos públicos ───────────────────────────────────────────────────────────
 export type {
-  RbacNodeOptions,
-  AuditMiddlewareOptions,
   TokenExtractor
 } from './types'
 // RbacNodeCtx es interno — no se exporta

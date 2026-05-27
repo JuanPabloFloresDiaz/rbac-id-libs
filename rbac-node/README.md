@@ -60,13 +60,13 @@ import { createRbacNode } from '@oscardevpr/rbac-node'
 
 const app = express()
 
-const rbac = createRbacNode({
-  authApiUrl:    process.env.AUTH_API,          // URL de itr-authenticator (requerido)
-  applicationId: process.env.APPLICATION_ID,   // ID de la app registrada (requerido)
-  publicRoutes:  ['/health', '/api-docs'],      // rutas que saltan el guard
-  timeout:       3000,                          // timeout en ms para llamadas al auth service
-  debugMode:     process.env.NODE_ENV !== 'production',
-})
+const rbac = createRbacNode(
+  process.env.AUTH_API,         // URL de itr-authenticator (requerido)
+  process.env.APPLICATION_ID,   // ID de la app registrada (requerido)
+  ['/health', '/api-docs'],                      // rutas que saltan el guard
+  3000,                                          // timeout en ms para llamadas al auth service
+  process.env.NODE_ENV !== 'production'
+)
 
 // Auditoría — registra todas las acciones en background
 app.use(rbac.audit())
@@ -82,12 +82,15 @@ app.listen(3000)
 
 ---
 
-## `createRbacNode(options)` — opciones
+## `createRbacNode(authApiUrl, applicationId, publicRoutes?, timeout?, debugMode?, tokenExtractor?, logger?, permissionsTtl?, webhookSecret?)`
 
-| Opción            | Tipo                | Requerido | Default                | Descripción                                              |
+`authApiUrl` y `applicationId` son **requeridos** y se pasan como parámetros posicionales.
+Para omitir un parámetro opcional intermedio usa `undefined`.
+
+| Parámetro         | Tipo                | Requerido | Default                | Descripción                                              |
 |-------------------|---------------------|-----------|------------------------|----------------------------------------------------------|
-| `authApiUrl`      | `string`            | ✅        | —                      | URL base del servicio itr-authenticator                  |
-| `applicationId`   | `string \| number`  | ✅        | —                      | ID de la aplicación registrada                           |
+| `authApiUrl`      | `string`            | ✅        | —                      | URL base del auth service                               |
+| `applicationId`   | `string \| number`  | ✅        | —                      | ID de la app registrada                                 |
 | `publicRoutes`    | `string[]`          | ❌        | `['/health']`          | Rutas que saltan `guard`, `sessionCheck` y `loadPermissions` |
 | `timeout`         | `number`            | ❌        | `3000`                 | Timeout en ms para llamadas HTTP al auth service         |
 | `debugMode`       | `boolean`           | ❌        | `false`                | Si `true`, todos los middlewares llaman `next()` directo |
@@ -114,12 +117,17 @@ Ambos modos coexisten — puedes combinarlos en el mismo servidor.
 ### Setup
 
 ```ts
-const rbac = createRbacNode({
-  authApiUrl:    process.env.AUTH_API,
-  applicationId: process.env.APPLICATION_ID,
-  permissionsTtl: 300,           // debe coincidir con PermissionCacheService en itr-authenticator
-  webhookSecret:  process.env.RBAC_WEBHOOK_SECRET,  // opcional pero recomendado en producción
-})
+const rbac = createRbacNode(
+  process.env.AUTH_API,
+  process.env.APPLICATION_ID,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  300, // debe coincidir con PermissionCacheService en itr-authenticator
+  process.env.RBAC_WEBHOOK_SECRET // opcional pero recomendado en producción
+)
 
 app.use(rbac.audit())
 app.use(rbac.loadPermissions())   // 1 HTTP call por sesión → llena req.rbac.permissions
@@ -232,15 +240,15 @@ El endpoint de verificación recibe:
 
 ---
 
-## `rbac.audit(options?)` — middleware de auditoría
+## `rbac.audit(exclude?, sensitiveFields?)` — middleware de auditoría
 
 Registra cada request de forma asíncrona (**fire-and-forget**). Nunca bloquea ni falla la request principal.
 
 ```ts
-app.use(rbac.audit({
-  exclude:         ['/health', '/metrics'],  // rutas que no se auditan
-  sensitiveFields: ['password', 'pin'],      // campos extra a ocultar del body
-}))
+app.use(rbac.audit(
+  ['/health', '/metrics'],  // rutas que no se auditan
+  ['password', 'pin']       // campos extra a ocultar del body
+))
 ```
 
 Los campos sensibles predeterminados ocultados son:
@@ -263,13 +271,16 @@ app.use('/api', rbac.sessionCheck)
 Por defecto el token se lee de la **cookie** `access_token`. Para soportar también `Authorization: Bearer`:
 
 ```ts
-const rbac = createRbacNode({
-  authApiUrl:    process.env.AUTH_API,
-  applicationId: process.env.APPLICATION_ID,
-  tokenExtractor: (req) =>
+const rbac = createRbacNode(
+  process.env.AUTH_API,
+  process.env.APPLICATION_ID,
+  undefined,
+  undefined,
+  undefined,
+  (req) =>
     req.cookies?.access_token ??
-    req.headers.authorization?.replace('Bearer ', ''),
-})
+    req.headers.authorization?.replace('Bearer ', '')
+)
 ```
 
 ---
@@ -304,7 +315,7 @@ const seed = defineRbacSeed({
 // Ejecutar al iniciar el servidor — antes de montar rutas
 runSeeder(seed)
 
-const rbac = createRbacNode({ authApiUrl, applicationId })
+const rbac = createRbacNode(authApiUrl, applicationId)
 app.use(rbac.audit())
 app.use(rbac.guard)
 ```
@@ -328,9 +339,7 @@ Content-Type: application/json
 
 ```ts
 import type {
-  RbacNodeOptions,        // Opciones de createRbacNode()
   RbacNodeInstance,       // Tipo retornado por createRbacNode()
-  AuditMiddlewareOptions, // Opciones de rbac.audit()
   TokenExtractor,         // (req: Request) => string | undefined
   Permission,
   User,

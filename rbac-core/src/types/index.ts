@@ -35,13 +35,6 @@ export interface RbacConfig {
   loginRoute: string
 }
 
-export interface RbacConfigInput {
-  authApiUrl: string
-  applicationId: string | number
-  debugMode?: boolean
-  loginRoute?: string
-}
-
 // ─── API response shapes ──────────────────────────────────────────────────────
 
 export interface SessionResponse {

@@ -1,4 +1,4 @@
-import type { RbacConfig, RbacConfigInput } from '../types'
+import type { RbacConfig } from '../types'
 
 /**
  * Global RBAC configuration singleton.
@@ -20,11 +20,16 @@ const rbacConfig: RbacConfig = {
  * Writes the runtime values into the singleton.
  * Called by `RbacPlugin.install()` before anything else runs.
  */
-export function setRbacConfig(config: RbacConfigInput): void {
-  rbacConfig.authApiUrl = config.authApiUrl ?? ''
-  rbacConfig.applicationId = config.applicationId ?? null
-  rbacConfig.debugMode = config.debugMode ?? false
-  rbacConfig.loginRoute = config.loginRoute ?? 'login'
+export function setRbacConfig(
+  authApiUrl: string,
+  applicationId: string | number,
+  debugMode: boolean = false,
+  loginRoute: string = 'login'
+): void {
+  rbacConfig.authApiUrl = authApiUrl ?? ''
+  rbacConfig.applicationId = applicationId ?? null
+  rbacConfig.debugMode = debugMode ?? false
+  rbacConfig.loginRoute = loginRoute ?? 'login'
 }
 
 export default rbacConfig

@@ -50,14 +50,12 @@ pnpm add @oscardevpr/rbac-core@workspace:*
 ```ts
 import { setRbacConfig } from '@oscardevpr/rbac-core'
 
-setRbacConfig({
-  authApiUrl:    process.env.AUTH_API_URL,   // URL base de itr-authenticator
-  applicationId: process.env.APPLICATION_ID, // ID de la app registrada
-  debugMode:     false,                       // true → checkPermission() siempre retorna true
-  // loginRoute: 'login'  ← solo necesario en @oscardevpr/rbac-vue
-  //                         (useSessionGuard y useLogout lo leen para redirigir con Vue Router)
-  //                         En proyectos Node.js/Express se puede omitir.
-})
+setRbacConfig(
+  process.env.AUTH_API_URL,    // URL base de itr-authenticator
+  process.env.APPLICATION_ID,  // ID de la app registrada
+  false,                       // true → checkPermission() siempre retorna true
+  'login'                      // solo necesario en @oscardevpr/rbac-vue
+)
 ```
 
 > `setRbacConfig` escribe en el singleton de módulo. Llámalo **una sola vez** al inicio de la app.
@@ -91,8 +89,8 @@ import {
   signOut,
 } from '@oscardevpr/rbac-core'
 
-// Login con email + contraseña
-const loginResult = await logInWithCredentials({ email, password })
+// Login con usuario + contraseña
+const loginResult = await logInWithCredentials(user_name, password)
 
 // Verificar sesión activa
 const session = await getAuthenticatedUserData()
@@ -142,7 +140,7 @@ Content-Type: application/json
 
 ## API completa
 
-### `setRbacConfig(config)`
+### `setRbacConfig(authApiUrl, applicationId, debugMode?, loginRoute?)`
 
 | Parámetro       | Tipo                      | Requerido | Default    | Descripción                                      |
 |-----------------|---------------------------|-----------|------------|--------------------------------------------------|
@@ -167,8 +165,8 @@ Factory que devuelve una instancia de `axios` preconfigurada con `authApiUrl` co
 
 | Función                          | Descripción                                              |
 |----------------------------------|----------------------------------------------------------|
-| `logInWithCredentials(creds)`    | `POST /auth/login` con email y password                  |
-| `logInByCoreToken(token)`        | Login mediante token SSO externo                         |
+| `logInWithCredentials(user_name, password)` | `POST /auth/login` con usuario y password        |
+| `logInByCoreToken(token)`                 | Login mediante token SSO externo                 |
 | `getAuthenticatedUserData()`     | `GET /user-sessions/verify-session`                      |
 | `getUserTypeAndActions(userId)`  | `GET /users/:id/application/:appId/get-user-type-actions`|
 | `signOut()`                      | `POST /auth/logout`                                      |
@@ -184,7 +182,6 @@ import type {
   UserType,               // { id, name }
   Application,            // { id, name }
   RbacConfig,             // Forma del singleton completo
-  RbacConfigInput,        // Input de setRbacConfig()
   RbacSeedEntry,          // { name: string; actions: string[] }
   RbacSeedMap,            // Record<string, string[]>
   SessionResponse,        // { user: User }

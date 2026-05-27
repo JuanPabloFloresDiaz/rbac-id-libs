@@ -210,13 +210,13 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     set({ application: info.application, userType: info.userType, permissions: info.permissions })
   },
 
-  async loginWithCredentials(payload) {
-    await logInWithCredentials(payload)
+  async loginWithCredentials(user_name, password) {
+    await logInWithCredentials(user_name, password)
     set({ isAuthenticated: true })
   },
 
   async loginByCoreToken(token) {
-    await logInByCoreToken({ token })
+    await logInByCoreToken(token)
     set({ isAuthenticated: true })
   },
 
@@ -414,9 +414,13 @@ startup, just like the Vue plugin does.
 
 ```ts
 import { setRbacConfig, runSeeder } from '@oscardevpr/rbac-core'
-import type { RbacConfigInput, RbacSeedEntry } from '@oscardevpr/rbac-core'
+import type { RbacSeedEntry } from '@oscardevpr/rbac-core'
 
-export interface RbacInitOptions extends RbacConfigInput {
+export interface RbacInitOptions {
+  authApiUrl: string
+  applicationId: string | number
+  debugMode?: boolean
+  loginRoute?: string
   seed?: RbacSeedEntry[]
 }
 
@@ -426,7 +430,7 @@ export function initRbac(options: RbacInitOptions): void {
   if (!authApiUrl)    throw new Error('[rbac] authApiUrl is required.')
   if (!applicationId) throw new Error('[rbac] applicationId is required.')
 
-  setRbacConfig({ authApiUrl, applicationId, debugMode, loginRoute })
+  setRbacConfig(authApiUrl, applicationId, debugMode, loginRoute)
 
   if (seed?.length) runSeeder(seed)
 }

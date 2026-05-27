@@ -8,6 +8,11 @@ import type {
 } from '../types'
 
 function getApi() {
+  if (!rbacConfig.authApiUrl) {
+    throw new Error(
+      '[rbac-core] authApiUrl is not configured. Call setRbacConfig() or install RbacPlugin before making HTTP requests.'
+    )
+  }
   return createAuthApi(rbacConfig.authApiUrl)
 }
 
@@ -37,21 +42,22 @@ export async function getUserTypeAndActions(
  * Authenticate with username + password credentials.
  * Maps to `POST /user-sessions/login`.
  */
-export async function logInWithCredentials(credentials: {
-  user_name: string
+export async function logInWithCredentials(
+  user_name: string,
   password: string
-}): Promise<LoginResponse> {
-  return getApi().post<never, LoginResponse>('/user-sessions/login', credentials)
+): Promise<LoginResponse> {
+  return getApi().post<never, LoginResponse>('/user-sessions/login', {
+    user_name,
+    password
+  })
 }
 
 /**
  * Authenticate using a core SSO token.
  * Maps to `POST /user-sessions/login-by-core-token`.
  */
-export async function logInByCoreToken(payload: {
-  token: string
-}): Promise<LoginResponse> {
-  return getApi().post<never, LoginResponse>('/user-sessions/login-by-core-token', payload)
+export async function logInByCoreToken(token: string): Promise<LoginResponse> {
+  return getApi().post<never, LoginResponse>('/user-sessions/login-by-core-token', { token })
 }
 
 /**

@@ -1,6 +1,5 @@
 // ─── Plugin ───────────────────────────────────────────────────────────────────
 export { RbacPlugin } from './plugin/index'
-export type { RbacPluginOptions } from './plugin/index'
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 export { useAuthStore } from './store/useAuthStore'
@@ -8,11 +7,9 @@ export { useAuthStore } from './store/useAuthStore'
 // ─── Composables ──────────────────────────────────────────────────────────────
 export { usePermission } from './composables/usePermission'
 export { useSessionGuard } from './composables/useSessionGuard'
-export type { SessionGuardOptions } from './composables/useSessionGuard'
 export { useNavItems } from './composables/useNavItems'
 export type { NavItem } from './composables/useNavItems'
 export { useLogout } from './composables/useLogout'
-export type { LogoutOptions } from './composables/useLogout'
 export { useUserDisplay } from './composables/useUserDisplay'
 
 // ─── Directive (for manual registration) ─────────────────────────────────────

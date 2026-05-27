@@ -68,8 +68,8 @@ export const useAuthStore = defineStore('rbac-auth', {
     /**
      * Login with username/password credentials.
      */
-    async loginWithCredentials(payload: { user_name: string; password: string }) {
-      const data = await logInWithCredentials(payload)
+    async loginWithCredentials(user_name: string, password: string) {
+      const data = await logInWithCredentials(user_name, password)
       this.isAuthenticated = true
       return data
     },
@@ -78,7 +78,7 @@ export const useAuthStore = defineStore('rbac-auth', {
      * Login using a core SSO token.
      */
     async loginByCoreToken(coreToken: string) {
-      const data = await logInByCoreToken({ token: coreToken })
+      const data = await logInByCoreToken(coreToken)
       this.isAuthenticated = true
       return data
     },

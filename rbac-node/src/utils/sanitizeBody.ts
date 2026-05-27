@@ -25,7 +25,7 @@ const DEFAULT_SENSITIVE_FIELDS: ReadonlySet<string> = new Set([
  * as-is so the function never throws on unexpected input.
  *
  * @param body            - The raw `req.body` value.
- * @param extraFields     - Additional field names to redact (from `AuditMiddlewareOptions.sensitiveFields`).
+ * @param extraFields     - Additional field names to redact (from `rbac.audit(..., sensitiveFields)`).
  */
 export function sanitizeBody(
   body: unknown,
