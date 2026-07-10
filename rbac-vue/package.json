@@ -1,6 +1,6 @@
 {
   "name": "@oscardevpr/rbac-vue",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "RBAC library for Vue 3 + Pinia applications",
   "type": "module",
   "main": "./dist/rbac-vue.umd.cjs",

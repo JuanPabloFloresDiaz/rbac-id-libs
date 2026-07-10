@@ -1,6 +1,6 @@
 {
   "name": "@oscardevpr/rbac-node",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Express/Node.js middlewares de autenticación y RBAC para itr-authenticator",
   "type": "module",
   "main": "./dist/rbac-node.node.cjs",
