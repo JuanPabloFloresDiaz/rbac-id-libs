@@ -29,6 +29,10 @@ export type {
   User,
   UserType,
   Application,
+  Institution,
+  InstitutionApplication,
+  InstitutionSummary,
   RbacConfig,
+  RbacConfigOptions,
   ApiError
 } from '@oscardevpr/rbac-core'

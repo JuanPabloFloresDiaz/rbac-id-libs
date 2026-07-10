@@ -27,7 +27,7 @@ export const RBAC_CATEGORY_KEY = 'rbac:category'
  */
 export function usePermission(category?: string) {
   const authStore = useAuthStore()
-  const { userData, userType, permissions, isAuthenticated, userEmail, userId } =
+  const { userData, userType, userTypes, permissions, isAuthenticated, userEmail, userId, institution, institutionApplication, institutionId, needsInstitutionSelection } =
     storeToRefs(authStore)
 
   if (category !== undefined) {
@@ -49,6 +49,11 @@ export function usePermission(category?: string) {
     hasAccess,
     userData,
     userType,
+    userTypes,
+    institution,
+    institutionApplication,
+    institutionId,
+    needsInstitutionSelection,
     permissions,
     isAuthenticated,
     userEmail,

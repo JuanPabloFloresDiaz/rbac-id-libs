@@ -1,35 +1,41 @@
-import type { RbacConfig } from '../types'
+import type { RbacConfig, RbacConfigOptions } from '../types'
 
-/**
- * Global RBAC configuration singleton.
- *
- * Set once at plugin install time via `setRbacConfig()` and then read
- * by the engine, directives, composables and the seeder.
- *
- * Direct mutation is intentional — this is a module-level singleton, not
- * a reactive store. Reactivity is handled at the Pinia store / composable level.
- */
 const rbacConfig: RbacConfig = {
   authApiUrl: '',
+  appKey: null,
   applicationId: null,
+  institutionId: null,
   debugMode: false,
   loginRoute: 'login'
 }
 
-/**
- * Writes the runtime values into the singleton.
- * Called by `RbacPlugin.install()` before anything else runs.
- */
+export function setRbacConfig(options: RbacConfigOptions): void
 export function setRbacConfig(
   authApiUrl: string,
   applicationId: string | number,
-  debugMode: boolean = false,
-  loginRoute: string = 'login'
+  debugMode?: boolean,
+  loginRoute?: string
+): void
+export function setRbacConfig(
+  optionsOrUrl: RbacConfigOptions | string,
+  applicationId?: string | number,
+  debugMode = false,
+  loginRoute = 'login'
 ): void {
-  rbacConfig.authApiUrl = authApiUrl ?? ''
-  rbacConfig.applicationId = applicationId ?? null
-  rbacConfig.debugMode = debugMode ?? false
-  rbacConfig.loginRoute = loginRoute ?? 'login'
+  const options: RbacConfigOptions = typeof optionsOrUrl === 'string'
+    ? { authApiUrl: optionsOrUrl, appKey: applicationId, debugMode, loginRoute }
+    : optionsOrUrl
+  const appKey = options.appKey ?? options.applicationId ?? null
+  rbacConfig.authApiUrl = options.authApiUrl ?? ''
+  rbacConfig.appKey = appKey
+  rbacConfig.applicationId = appKey
+  rbacConfig.institutionId = options.institutionId ?? null
+  rbacConfig.debugMode = options.debugMode ?? false
+  rbacConfig.loginRoute = options.loginRoute ?? 'login'
+}
+
+export function setInstitutionId(institutionId: string | null): void {
+  rbacConfig.institutionId = institutionId
 }
 
 export default rbacConfig

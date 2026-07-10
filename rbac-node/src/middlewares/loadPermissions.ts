@@ -1,94 +1,58 @@
 import type { RequestHandler } from 'express'
 import axios from 'axios'
-import type { Permission } from '@oscardevpr/rbac-core'
+import type { Institution, InstitutionApplication, Permission, MyPermissionsResponse } from '@oscardevpr/rbac-core'
 import type { RbacNodeCtx } from '../types'
 import { getCached, setCache } from '../utils/permissionsCache'
-
-// ─── Module augmentation (req.rbac) ──────────────────────────────────────────
-
-declare global {
-  namespace Express {
-    interface Request {
-      rbac?: {
-        userId:      string
-        permissions: Permission[]
-      }
-    }
-  }
-}
-
-// ─── Internal helpers ─────────────────────────────────────────────────────────
-
-function isPublicRoute(path: string, publicRoutes: string[]): boolean {
-  return publicRoutes.some((route) => path.startsWith(route))
-}
-
-// ─── Factory ──────────────────────────────────────────────────────────────────
-
-/**
- * Creates the `loadPermissions` middleware from the resolved `RbacNodeCtx`.
- *
- * The middleware:
- * 1. Bypasses loading for public routes and when `debugMode` is `true`.
- * 2. Checks the in-memory cache keyed by a SHA-256 hash of the token.
- *    - Cache HIT  → attaches `req.rbac.permissions` immediately (0 HTTP calls).
- *    - Cache MISS → calls `GET {authApiUrl}/api/v1/permissions/my-permissions`
- *                   and stores the result for `permissionsTtl` seconds.
- * 3. On any auth error (401/403) → forwards to the Express error handler.
- *
- * Must be mounted BEFORE any `rbac.can()` middleware:
- * ```ts
- * app.use(rbac.loadPermissions())
- * router.post('/empleados', rbac.can('Empleados', 'Agregar empleados'), handler)
- * ```
- */
+import { resolveInstitutionId } from '../utils/institutionContext'
+declare global { namespace Express { interface Request { rbac?: {
+  userId: string; appKey: string | number; institutionId?: string;
+  institutionApplicationId?: string; institution?: Institution;
+  institutionApplication?: InstitutionApplication; permissions: Permission[]
+} } } }
+function isPublicRoute(path: string, routes: string[]) { return routes.some((route) => path.startsWith(route)) }
 export function makeLoadPermissions(ctx: RbacNodeCtx): RequestHandler {
-  return async (req, res, next) => {
-    // ── Bypass ──────────────────────────────────────────────────────────────
-    if (ctx.debugMode) {
-      req.rbac = { userId: 'debug', permissions: [] }
-      return next()
-    }
-
-    if (isPublicRoute(req.path, ctx.publicRoutes)) {
-      return next()
-    }
-
+  return async (req, _res, next) => {
+    if (ctx.debugMode) { req.rbac = { userId: 'debug', appKey: ctx.appKey, permissions: [] }; return next() }
+    if (isPublicRoute(req.path, ctx.publicRoutes)) return next()
     const token = ctx.tokenExtractor(req)
-
-    if (!token) {
-      // No token at all — let authGuard / sessionCheck handle the 401,
-      // or the consumer's errorHandler. We just skip loading.
-      return next()
-    }
-
-    // ── Cache lookup ─────────────────────────────────────────────────────────
-    const cached = getCached(token)
-    if (cached) {
-      req.rbac = { userId: req.rbac?.userId ?? '', permissions: cached }
-      return next()
-    }
-
-    // ── Fetch from itr-authenticator ─────────────────────────────────────────
+    if (!token) return next()
     try {
-      const response = await axios.get<{ userId: string; permissions: Permission[] }>(
-        `${ctx.authApiUrl}/api/v1/permissions/my-permissions`,
-        {
-          params:          { appKey: ctx.applicationId },
-          headers:         { Cookie: `access_token=${token}` },
-          withCredentials: true,
-          timeout:         ctx.timeout,
+      const institutionId = await resolveInstitutionId(ctx, req)
+      const appKey = String(ctx.appKey)
+      const cached = getCached(token, appKey, institutionId)
+      if (cached) {
+        req.rbac = {
+          userId: cached.userId,
+          appKey: ctx.appKey,
+          institutionId,
+          institutionApplicationId: cached.institutionApplicationId,
+          institution: cached.institution,
+          institutionApplication: cached.institutionApplication,
+          permissions: cached.permissions,
         }
-      )
-
-      const { userId, permissions } = response.data
-
-      setCache(token, userId, permissions, ctx.permissionsTtl)
-
-      req.rbac = { userId, permissions }
+        return next()
+      }
+      const endpoint = institutionId ? '/api/v2/permissions/me' : '/api/v1/permissions/me'
+      const response = await axios.get<MyPermissionsResponse>(`${ctx.authApiUrl}${endpoint}`, {
+        params: { appKey: ctx.appKey, ...(institutionId ? { institutionId } : {}) },
+        headers: { Cookie: `access_token=${token}` }, withCredentials: true, timeout: ctx.timeout,
+      })
+      const data = response.data
+      const userId = String(data.user.id)
+      const institutionApplicationId = data.institutionApplication?.id
+      setCache(token, userId, data.permissions, ctx.permissionsTtl, appKey, institutionId, {
+        institutionApplicationId,
+        institution: data.institution,
+        institutionApplication: data.institutionApplication,
+      })
+      req.rbac = {
+        userId, appKey: ctx.appKey, institutionId,
+        institutionApplicationId,
+        institution: data.institution,
+        institutionApplication: data.institutionApplication,
+        permissions: data.permissions,
+      }
       next()
-    } catch (err) {
-      next(err)
-    }
+    } catch (err) { next(err) }
   }
 }

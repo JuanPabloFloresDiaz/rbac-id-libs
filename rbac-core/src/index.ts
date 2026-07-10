@@ -4,7 +4,13 @@ export type {
   User,
   UserType,
   Application,
+  Institution,
+  InstitutionApplication,
+  InstitutionSummary,
+  InstitutionsResponse,
+  MyPermissionsResponse,
   RbacConfig,
+  RbacConfigOptions,
   RbacSeedEntry,
   RbacSeedMap,
   SessionResponse,
@@ -15,7 +21,7 @@ export type {
 } from './types'
 
 // ─── Config singleton ─────────────────────────────────────────────────────────
-export { default as rbacConfig, setRbacConfig } from './config/rbacConfig'
+export { default as rbacConfig, setRbacConfig, setInstitutionId } from './config/rbacConfig'
 
 // ─── Permission engine ────────────────────────────────────────────────────────
 export { checkPermission, checkPermissionAny } from './engine/permissionEngine'
@@ -24,6 +30,8 @@ export { checkPermission, checkPermissionAny } from './engine/permissionEngine'
 export { createAuthApi } from './http/createAuthApi'
 export {
   getAuthenticatedUserData,
+  getMyInstitutions,
+  getMyPermissions,
   getUserTypeAndActions,
   logInWithCredentials,
   logInByCoreToken,

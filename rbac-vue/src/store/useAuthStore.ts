@@ -1,16 +1,11 @@
 import { defineStore } from 'pinia'
 import {
-  getAuthenticatedUserData,
-  getUserTypeAndActions,
-  logInWithCredentials,
-  logInByCoreToken,
-  signOut
+  getAuthenticatedUserData, getMyInstitutions, getMyPermissions,
+  logInWithCredentials, logInByCoreToken, signOut, rbacConfig, setInstitutionId
 } from '@oscardevpr/rbac-core'
 import type {
-  User,
-  UserType,
-  Application,
-  Permission
+  User, UserType, Application, Permission, Institution,
+  InstitutionApplication, InstitutionSummary
 } from '@oscardevpr/rbac-core'
 
 export const useAuthStore = defineStore('rbac-auth', {
@@ -19,83 +14,66 @@ export const useAuthStore = defineStore('rbac-auth', {
     userData: null as User | null,
     application: null as Application | null,
     userType: null as UserType | null,
-    permissions: [] as Permission[]
+    userTypes: [] as UserType[],
+    permissions: [] as Permission[],
+    institutions: [] as InstitutionSummary[],
+    institution: null as Institution | null,
+    institutionApplication: null as InstitutionApplication | null,
   }),
-
   getters: {
     userEmail: (state): string | null => state.userData?.email ?? null,
-    userId: (state): string | number | null => state.userData?.id ?? null
+    userId: (state): string | number | null => state.userData?.id ?? null,
+    institutionId: (state): string | null => state.institution?.id ?? null,
+    needsInstitutionSelection: (state): boolean => state.institutions.length > 1 && !state.institution,
   },
-
   actions: {
-    /**
-     * Returns the list of allowed actions for a given category.
-     * Single source of truth for category-scoped permission queries.
-     */
     getActionsByCategory(category: string): string[] {
-      if (!category) return []
-      const entry = this.permissions.find((p) => p.category === category)
-      return entry ? entry.actions : []
+      return this.permissions.find((p) => p.category === category)?.actions ?? []
     },
-
-    /**
-     * Verifies the active session and loads the authenticated user's data.
-     * Triggers `loadPermissions()` automatically when a user id is present.
-     */
+    clearAuthorizationContext() {
+      this.application = null; this.userType = null; this.userTypes = []
+      this.permissions = []; this.institution = null; this.institutionApplication = null
+    },
+    async loadInstitutions() {
+      const data = await getMyInstitutions()
+      this.institutions = data.institutions
+      return data.institutions
+    },
+    async selectInstitution(institutionId: string) {
+      const selected = this.institutions.find((item) => item.id === institutionId)
+      if (!selected) throw new Error(`[rbac-vue] Institution ${institutionId} is not available`)
+      this.clearAuthorizationContext()
+      setInstitutionId(institutionId)
+      await this.loadPermissions()
+    },
     async checkAuth() {
       const data = await getAuthenticatedUserData()
-      this.userData = data.user
-      this.isAuthenticated = true
-
-      if (data.user?.id) {
-        await this.loadPermissions(data.user.id)
-      }
-
+      this.userData = data.user; this.isAuthenticated = true
+      const institutions = await this.loadInstitutions()
+      const configured = rbacConfig.institutionId
+      if (configured && institutions.some(({ id }) => id === configured)) await this.selectInstitution(configured)
+      else if (institutions.length === 1) await this.selectInstitution(institutions[0].id)
+      else if (institutions.length === 0) await this.loadPermissions()
       return data
     },
-
-    /**
-     * Fetches `userType`, `application` and `permissions` for the given user
-     * scoped to the configured `applicationId`.
-     */
-    async loadPermissions(userId: string | number) {
-      const info = await getUserTypeAndActions(userId)
-      this.application = info.application
-      this.userType = info.userType
+    async loadPermissions(_userId?: string | number) {
+      const info = await getMyPermissions()
+      this.application = info.application; this.userType = info.userType
+      this.userTypes = info.userTypes ?? (info.userType ? [info.userType] : [])
       this.permissions = info.permissions
+      this.institution = info.institution ?? null
+      this.institutionApplication = info.institutionApplication ?? null
     },
-
-    /**
-     * Login with username/password credentials.
-     */
     async loginWithCredentials(user_name: string, password: string) {
-      const data = await logInWithCredentials(user_name, password)
-      this.isAuthenticated = true
-      return data
+      const data = await logInWithCredentials(user_name, password); this.isAuthenticated = true; return data
     },
-
-    /**
-     * Login using a core SSO token.
-     */
     async loginByCoreToken(coreToken: string) {
-      const data = await logInByCoreToken(coreToken)
-      this.isAuthenticated = true
-      return data
+      const data = await logInByCoreToken(coreToken); this.isAuthenticated = true; return data
     },
-
-    /**
-     * Signs out the current user and resets the store to its initial state.
-     */
-    async logOut() {
-      const data = await signOut()
-      this.$reset()
-      return data
-    },
-
-    // ─── Manual setters (for layouts that hydrate the store directly) ─────────
+    async logOut() { const data = await signOut(); setInstitutionId(null); this.$reset(); return data },
     setUser(user: User) { this.userData = user },
     setUserType(userType: UserType) { this.userType = userType },
     setApplication(application: Application) { this.application = application },
-    setPermissions(permissions: Permission[]) { this.permissions = permissions }
+    setPermissions(permissions: Permission[]) { this.permissions = permissions },
   }
 })

@@ -1,85 +1,60 @@
-import type { Permission } from '@oscardevpr/rbac-core'
+﻿import type { Institution, InstitutionApplication, Permission } from '@oscardevpr/rbac-core'
 import { createHash } from 'crypto'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface CacheEntry {
-  userId:      string
+export interface CachedPermissions {
+  userId: string
+  appKey: string
+  institutionId?: string
+  institutionApplicationId?: string
+  institution?: Institution
+  institutionApplication?: InstitutionApplication
   permissions: Permission[]
-  expiresAt:   number
+  expiresAt: number
 }
-
-// ─── In-memory store ──────────────────────────────────────────────────────────
-
-const store = new Map<string, CacheEntry>()
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Derives a stable, non-reversible cache key from the raw token.
- * The plain token value is never stored in memory.
- */
-function tokenKey(token: string): string {
-  return createHash('sha256').update(token).digest('hex')
+export interface InvalidatePermissionsFilter {
+  appKey?: string
+  institutionId?: string
+  institutionApplicationId?: string
 }
-
-// ─── Public API ───────────────────────────────────────────────────────────────
-
-/**
- * Returns cached permissions for the given token, or `null` if missing/expired.
- */
-export function getCached(token: string): Permission[] | null {
-  const key   = tokenKey(token)
+const store = new Map<string, CachedPermissions>()
+export function permissionCacheKey(token: string, appKey = '', institutionId = 'legacy'): string {
+  return createHash('sha256').update(`${token}\0${appKey}\0${institutionId}`).digest('hex')
+}
+export function getCached(token: string, appKey = '', institutionId?: string): CachedPermissions | null {
+  const key = permissionCacheKey(token, appKey, institutionId)
   const entry = store.get(key)
-
   if (!entry) return null
-  if (Date.now() > entry.expiresAt) {
-    store.delete(key)
-    return null
-  }
-
-  return entry.permissions
+  if (Date.now() > entry.expiresAt) { store.delete(key); return null }
+  return entry
 }
-
-/**
- * Stores permissions for the given token tagged with the userId so they can
- * be invalidated when the user's permissions change.
- *
- * @param token       - Raw access_token (will be hashed before storing).
- * @param userId      - Owner of the token — used for invalidation by userId.
- * @param permissions - Permissions to cache.
- * @param ttlSeconds  - Entry lifetime. Must match itr-authenticator's
- *                      PermissionCacheService TTL (default: 300 s).
- */
 export function setCache(
-  token: string,
-  userId: string,
-  permissions: Permission[],
-  ttlSeconds = 300
+  token: string, userId: string, permissions: Permission[], ttlSeconds = 300,
+  appKey = '', institutionId?: string, metadata: Pick<CachedPermissions, 'institutionApplicationId' | 'institution' | 'institutionApplication'> = {}
 ): void {
-  store.set(tokenKey(token), {
-    userId,
+  store.set(permissionCacheKey(token, appKey, institutionId), {
+    userId, appKey, institutionId,
+    institutionApplicationId: metadata.institutionApplicationId,
+    institution: metadata.institution,
+    institutionApplication: metadata.institutionApplication,
     permissions,
     expiresAt: Date.now() + ttlSeconds * 1000,
   })
 }
-
-/**
- * Removes all cache entries belonging to the given userId.
- * Called by the webhook handler `POST /rbac/cache/invalidate { userId }` when
- * itr-authenticator signals that a user's permissions have changed.
- *
- * O(n) over current cache size — acceptable because permission-change operations
- * are infrequent administrative actions, not hot-path operations.
- *
- * @returns Number of entries removed.
- */
-export function invalidateByUserId(userId: string): number {
+export function invalidateByUserId(
+  userId: string,
+  appKeyOrFilter?: string | InvalidatePermissionsFilter,
+  institutionId?: string
+): number {
+  const filter = typeof appKeyOrFilter === 'object'
+    ? appKeyOrFilter
+    : { appKey: appKeyOrFilter, institutionId }
   let removed = 0
   for (const [key, entry] of store) {
-    if (entry.userId === userId) {
-      store.delete(key)
-      removed++
+    if (entry.userId === userId &&
+      (!filter.appKey || entry.appKey === filter.appKey) &&
+      (!filter.institutionId || entry.institutionId === filter.institutionId) &&
+      (!filter.institutionApplicationId || entry.institutionApplicationId === filter.institutionApplicationId)) {
+      store.delete(key); removed++
     }
   }
   return removed

@@ -1,4 +1,4 @@
-import type { RequestHandler, Router } from 'express'
+﻿import type { RequestHandler, Router } from 'express'
 import { Router as createRouter } from 'express'
 import type { RbacNodeCtx } from '../types'
 import { invalidateByUserId } from '../utils/permissionsCache'
@@ -29,13 +29,16 @@ export function makeCacheRouter(ctx: RbacNodeCtx): Router {
   /**
    * POST /rbac/cache/invalidate
    *
-   * Body: { userId: string, applicationId?: string }
+   * Body: { userId: string, appKey?: string, institutionId?: string, institutionApplicationId?: string }
    *
    * Called by itr-authenticator's CacheInvalidationService.
-   * Removes all in-memory permission cache entries for the given userId.
+   * Removes in-memory permission cache entries for the given userId. When tenant
+   * metadata is provided, invalidation is scoped to the exact app/tenant install.
    */
   router.post('/rbac/cache/invalidate', ((req, res) => {
-    const { userId } = req.body as { userId?: string; applicationId?: string }
+    const { userId, appKey, institutionId, institutionApplicationId } = req.body as {
+      userId?: string; appKey?: string; institutionId?: string; institutionApplicationId?: string
+    }
 
     if (!userId || typeof userId !== 'string') {
       return res.status(400).json({ message: 'userId is required' })
@@ -49,10 +52,10 @@ export function makeCacheRouter(ctx: RbacNodeCtx): Router {
       }
     }
 
-    const removed = invalidateByUserId(userId)
+    const removed = invalidateByUserId(userId, { appKey, institutionId, institutionApplicationId })
 
     ctx.logger.info(
-      `[rbac-node] Cache invalidated for userId=${userId} — ${removed} entr${removed === 1 ? 'y' : 'ies'} removed`
+      `[rbac-node] Cache invalidated for userId=${userId}, appKey=${appKey ?? '*'}, institutionId=${institutionId ?? '*'}, institutionApplicationId=${institutionApplicationId ?? '*'} — ${removed} entr${removed === 1 ? 'y' : 'ies'} removed`
     )
 
     res.json({ ok: true, removed })

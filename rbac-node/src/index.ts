@@ -1,16 +1,18 @@
-// ─── Factory principal ────────────────────────────────────────────────────────
+﻿// ─── Factory principal ────────────────────────────────────────────────────────
 export { createRbacNode } from './createRbacNode'
 
 // ─── Tipos públicos ───────────────────────────────────────────────────────────
 export type {
-  TokenExtractor
+  TokenExtractor,
+  InstitutionResolver,
+  RbacNodeOptions
 } from './types'
 // RbacNodeCtx es interno — no se exporta
 
 // ─── Utilidades (para casos avanzados / testing) ──────────────────────────────
 export { defaultTokenExtractor }  from './utils/extractToken'
 export { sanitizeBody }           from './utils/sanitizeBody'
-export { invalidateByUserId }     from './utils/permissionsCache'
+export { getCached, invalidateByUserId, permissionCacheKey, setCache } from './utils/permissionsCache'
 
 // ─── Re-exports de rbac-core útiles en el servidor ────────────────────────────
 // Evita que el consumer tenga que importar directamente de @oscardevpr/rbac-core
@@ -21,6 +23,8 @@ export type {
   User,
   UserType,
   Application,
+  Institution,
+  InstitutionApplication,
   ApiError,
   RbacSeedEntry,
   RbacSeedMap,

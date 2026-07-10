@@ -8,3 +8,4 @@ pnpm-lock.yaml
 *.tsbuildinfo
 .DS_Store
 Thumbs.db
+graphify-out

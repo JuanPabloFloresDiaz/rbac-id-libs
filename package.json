@@ -1,13 +1,15 @@
 {
-  "name": "rbac-id-libs",
-  "private": true,
-  "description": "Monorepo de librerías RBAC para el ecosistema itr-authenticator",
-  "scripts": {
-    "build": "pnpm --filter \"@oscardevpr/*\" build",
-    "dev": "pnpm --filter \"@oscardevpr/*\" dev",
-    "typecheck": "pnpm --filter \"@oscardevpr/*\" typecheck"
-  },
-  "devDependencies": {
-    "typescript": "^5.4.0"
-  }
+    "name":  "rbac-id-libs",
+    "private":  true,
+    "description":  "Monorepo de librerías RBAC para el ecosistema itr-authenticator",
+    "scripts":  {
+                    "build":  "pnpm --filter \"@oscardevpr/*\" build",
+                    "dev":  "pnpm --filter \"@oscardevpr/*\" dev",
+                    "typecheck":  "pnpm --filter \"@oscardevpr/*\" typecheck",
+                    "test":  "pnpm build \u0026\u0026 node --test test/legacy/core.test.mjs test/legacy/node.test.mjs test/legacy/vue-exports.test.mjs test/phase3/tenant-runtime.test.mjs test/phase5/tenant-metadata.test.mjs",
+                    "test:legacy":  "pnpm build \u0026\u0026 node --test test/legacy/core.test.mjs test/legacy/node.test.mjs test/legacy/vue-exports.test.mjs"
+                },
+    "devDependencies":  {
+                            "typescript":  "^5.4.0"
+                        }
 }
